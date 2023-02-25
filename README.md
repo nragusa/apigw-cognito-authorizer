@@ -1,58 +1,60 @@
 
-# Welcome to your CDK Python project!
+# Overview
 
-This is a blank project for CDK development with Python.
+This CDK application builds the following:
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+* A Cognito user pool and application client
+* An API Gateway (REST) regional endpoint
+* A `/hello` resource with `GET` method
+* A Cognito authorizer associated to this resource
+* A Lambda function that returns `{"message": "Hello World"}`
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+## Deployment
 
-To manually create a virtualenv on MacOS and Linux:
+Using [AWS CloudFormation](https://aws.amazon.com/cloudformation/), deploy this [template.yml](templates/template.yml) in the region of your choice.
 
-```
-$ python3 -m venv .venv
-```
+Once complete, be sure to click on the `Outputs` tab and save the values listed. In a terminal window, export the following from the `Outputs` tab to easily run commands in the subequent steps:
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
+![outputs](images/outputs.png)
 
-```
-$ source .venv/bin/activate
+```bash
+export USERPOOCLIENT=youruserpoolclientid
+export USERPOOLID=youruserpoolid
+export APIENDPOINT=yourAPIendpointURL
 ```
 
-If you are a Windows platform, you would activate the virtualenv like this:
+## Create a user
 
-```
-% .venv\Scripts\activate.bat
-```
+Before you can test the API Gateway endpoint, you first need to create a user in the Cognito user pool.
 
-Once the virtualenv is activated, you can install the required dependencies.
+Using the [aws cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html), run the following:
 
-```
-$ pip install -r requirements.txt
+```bash
+aws cognito-idp sign-up --client-id $USERPOOCLIENT  --username user@example.com --password 'ThisIsMyTemp0rary#' --user-attributes Name="email",Value="user@example.com"
 ```
 
-At this point you can now synthesize the CloudFormation template for this code.
+Once you have created the user, you need to confirm the user in the user pool so that they may log in. See [step 3 here](https://docs.aws.amazon.com/cognito/latest/developerguide/signing-up-users-in-your-app.html#signing-up-users-in-your-app-and-confirming-them-as-admin).
 
+## Generate a token
+
+```bash
+aws cognito-idp initiate-auth --auth-flow USER_PASSWORD_AUTH --auth-parameters USERNAME='user@example.com',PASSWORD='ThisIsMyTemp0rary#' --client-id $USERPOOCLIENT
 ```
-$ cdk synth
+
+Copy and export the value of `IdToken` that is returned.
+
+```bash
+export IDTOKEN=longstringofcharacters
 ```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+Now test the API Gateway endpoint using curl:
 
-## Useful commands
+```bash
+curl -X GET $APIENDPOINT/hello -H "Authorization: $IDTOKEN"
+```
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+You should get a JSON response similar to:
 
-Enjoy!
+```bash
+{"message": "Hello World"}
+```
