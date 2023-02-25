@@ -50,7 +50,7 @@ export IDTOKEN=longstringofcharacters
 Now test the API Gateway endpoint using curl:
 
 ```bash
-curl -X GET $APIENDPOINT/hello -H "Authorization: $IDTOKEN"
+curl -X GET ${APIENDPOINT}hello -H "Authorization: $IDTOKEN"
 ```
 
 You should get a JSON response similar to:
