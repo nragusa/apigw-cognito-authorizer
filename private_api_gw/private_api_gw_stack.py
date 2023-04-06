@@ -265,13 +265,7 @@ class PrivateApiGwStack(Stack):
         # CloudFormation outputs
         CfnOutput(
             self,
-            'UserPoolClient',
+            'USERPOOLCLIENT',
             description='The user pool application client ID',
             value=user_pool_client.user_pool_client_id
-        )
-        CfnOutput(
-            self,
-            'UserPool',
-            description='The user pool ID',
-            value=user_pool.user_pool_id
         )
