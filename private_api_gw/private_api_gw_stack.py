@@ -4,15 +4,11 @@ from aws_cdk import (
     RemovalPolicy,
     Stack,
     aws_apigateway as apigw,
-    # aws_apigatewayv2_alpha as apigateway,
-    # aws_apigatewayv2_authorizers_alpha as apigateway_authorizers,
-    # aws_apigatewayv2_integrations_alpha as apigateway_integrations,
     aws_cognito as cognito,
     aws_ec2 as ec2,
     aws_elasticloadbalancingv2 as elbv2,
     aws_elasticloadbalancingv2_targets as elbv2_targets,
     aws_iam as iam
-    # aws_lambda as lambda_
 )
 from constructs import Construct
 
@@ -22,6 +18,9 @@ class PrivateApiGwStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Creates a VPC with CIDR 10.10.0.0/16
+        # 2 public subnets with 1 NAT gateway
+        # 2 private subnets
         vpc = ec2.Vpc(
             self,
             'VpcForPrivateEndpoint',
@@ -40,7 +39,12 @@ class PrivateApiGwStack(Stack):
             nat_gateways=1
         )
 
-        # VPC Endpoint definitions
+        # Create a VPC endpoint for API Gateway. This will create 2 ENIs
+        # (elastic network interfaces) in the private subnets of the VPC
+        # created above. When a client wants to make a request to the
+        # API Gateway, it will send the request to one of these endpoints.
+        # A security group is required for these ENIs and is configured
+        # to allow access to port 443 over TCP
         vpc_endpoint_sg = ec2.SecurityGroup(
             self,
             'VpcEndpointSecurityGroup',
@@ -62,6 +66,10 @@ class PrivateApiGwStack(Stack):
             security_groups=[vpc_endpoint_sg]
         )
 
+        # A basic Cognito user pool to store username / passwords
+        # and provide authorization to the API Gateway endpoint
+        # Clients must authenticate and get an ID token before calling
+        # the API Gateway endpoint
         user_pool = cognito.UserPool(
             self,
             'TestUserPool',
@@ -79,7 +87,6 @@ class PrivateApiGwStack(Stack):
             ),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY
         )
-
         user_pool_client = cognito.UserPoolClient(
             self,
             'TestUserPoolClient',
@@ -95,27 +102,10 @@ class PrivateApiGwStack(Stack):
             ]
         )
 
-        # HTTP API stuff
-        # http_api = apigateway.HttpApi(
-        #     self,
-        #     'TestAPIGatewayHTTPAPI',
-        #     api_name='cognito-userpool-test',
-        # )
-        # authorizer = apigateway_authorizers.HttpUserPoolAuthorizer(
-        #     'HttpAPIAuthorizer',
-        #     pool=user_pool,
-        #     user_pool_clients=[user_pool_client]
-        # )
-        # http_api.add_routes(
-        #     path='/hello',
-        #     authorizer=authorizer,
-        #     integration=apigateway_integrations.HttpLambdaIntegration(
-        #         'LambdaIntegration',
-        #         handler=hello_world_function,
-        #     )
-        # )
-
-        # REST API stuff
+        # Creates the API Gateway REST endpoint. It is configured to be
+        # private and to be accessed through the VPC endpoint created earlier.
+        # There is also a policy associated to this that dictates access
+        # to this endpoint can only be granted through the VPC endpoint.
         rest_api = apigw.RestApi(
             self,
             'TestRESTAPI',
@@ -159,25 +149,19 @@ class PrivateApiGwStack(Stack):
             cognito_user_pools=[user_pool]
         )
 
-        hello = rest_api.root.add_resource('hello')
-        # hello.add_method(
-        #     'GET',
-        #     integration=apigw.LambdaIntegration(
-        #         handler=hello_world_function,
-        #         proxy=True
-        #     ),
-        #     authorizer=rest_authorizer,
-        #     authorization_type=apigw.AuthorizationType.COGNITO
-        # )
-
-        # EC2 instance user data to install / start Apache after initial launch
+        # EC2 instance user data which will install Apache, create
+        # an index.html file to be served from the root directory,
+        # and enable Apache to start on boot. This only gets executed
+        # once after the initial creation of the instance.
         user_data = ec2.UserData.for_linux()
         user_data.add_commands(
             'yum -y install httpd',
             'echo "Hello World!" > /var/www/html/index.html',
+            'systemctl enable httpd',
             'systemctl start httpd'
         )
-        # EC2 instance security group
+        # The security group for this instance which will allow access
+        # to port 80 from the VPC CIDR range
         my_ec2_sg = ec2.SecurityGroup(
             self,
             'Ec2ApiInstanceSecurityGroup',
@@ -189,7 +173,10 @@ class PrivateApiGwStack(Stack):
             connection=ec2.Port.tcp(80),
             description='Allow HTTP connectivity to the instance from within the VPC'
         )
-        # EC2 instance
+        # Creates a t3.large EC2 instance using the latest Amazon Linux 2
+        # AMI. Also uses the security group and user data defined above.
+        # Adds a policy to allow this instance to be managed by
+        # AWS Systems Manager.
         my_ec2 = ec2.Instance(
             self,
             'Ec2ApiInstance',
@@ -207,7 +194,9 @@ class PrivateApiGwStack(Stack):
             )
         )
 
-        # Create the NLB
+        # Create a Network Load Balancer for use with VPC link. This
+        # allows API Gateway private integration with the EC2 instance
+        # created above.
         nlb = elbv2.NetworkLoadBalancer(
             self,
             'NetworkLoadBalancer',
@@ -255,6 +244,10 @@ class PrivateApiGwStack(Stack):
             description='VPC Link for API Gateway',
             targets=[nlb]
         )
+
+        # Create the 'hello' resource and method onto the REST API
+        # that uses VPC link for the integration and Cognito for authorization
+        hello = rest_api.root.add_resource('hello')
         hello.add_method(
             http_method='GET',
             integration=apigw.Integration(
@@ -281,10 +274,4 @@ class PrivateApiGwStack(Stack):
             'UserPool',
             description='The user pool ID',
             value=user_pool.user_pool_id
-        )
-        CfnOutput(
-            self,
-            'LoadBalancerUrl',
-            description='The URL of the network load balancer',
-            value=f'https://{nlb.load_balancer_dns_name}/'
         )
