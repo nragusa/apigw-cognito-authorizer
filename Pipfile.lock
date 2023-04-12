@@ -27,19 +27,19 @@
         },
         "aws-cdk-lib": {
             "hashes": [
-                "sha256:0d7001b0f507dcd435c6c20688e61d6c45c297e54bae2bf36256e10520668a8a",
-                "sha256:a0aeaf0e0d0dcc36fe52a1df09708028a8f71f54116bc3f2afec546b0d90c256"
+                "sha256:60271826f4d53267b39c43aaba93eecbcd2b85c1a1ae206ce56f347344903554",
+                "sha256:9e93044d19ae26ef4303b39cbd4b083f8b183bb9211bc2f9b76698a8c765d8ad"
             ],
             "index": "pypi",
-            "version": "==2.72.1"
+            "version": "==2.73.0"
         },
         "aws-cdk.asset-awscli-v1": {
             "hashes": [
-                "sha256:90adb0f2405e0794607dddab09c7427ca02941655fbfe0164459111d7509b1a3",
-                "sha256:fa6d42e0d026de4cbb610672acdbfa00db30e763613cfabb0c7e7b6cea63275d"
+                "sha256:699e17416635f82d3a92ff5edc99725b4d473b1be2b22b38e060d4aa2153683e",
+                "sha256:cbd931a07c817c0cced3431a6d19f8169a7d95ec0dbb15d7b28ad8e11f3cdf1a"
             ],
             "markers": "python_version ~= '3.7'",
-            "version": "==2.2.129"
+            "version": "==2.2.137"
         },
         "aws-cdk.asset-kubectl-v20": {
             "hashes": [
@@ -51,11 +51,11 @@
         },
         "aws-cdk.asset-node-proxy-agent-v5": {
             "hashes": [
-                "sha256:31ef1c6e49ca1baaa4e32b1b4f1ba6c1f493939741387ec30fe581aebc2a18ae",
-                "sha256:d3c5402148ec2964b6faec33043760182c7434e3e000369363c265c01717cd0c"
+                "sha256:179264ce2ad15fb4252995b2320f75ae1b3472881f1d5371137d4f6549137db8",
+                "sha256:bdd26ce3689940373af73739f01b8e4a12fb701a64976c30e2532d481e0e7b35"
             ],
             "markers": "python_version ~= '3.7'",
-            "version": "==2.0.105"
+            "version": "==2.0.113"
         },
         "cattrs": {
             "hashes": [
@@ -67,11 +67,11 @@
         },
         "constructs": {
             "hashes": [
-                "sha256:94e8f2dc238e30129013a808f23a109a4c5749b94616a8c51c2597ce49bd623c",
-                "sha256:e99390593511ceec1964beeab0977c6df4ca4dbdf0bf17dc3391471fb202e9fb"
+                "sha256:8b5a39009e5e82b7a973daecf5f6d50658e5198b2e5c44ae9ef8b34ae5084d24",
+                "sha256:e9ceb81fbf99862d092c5af8e3f5bf3f8b12bf2fcacd39a80fbc6e3d9b4e154f"
             ],
             "markers": "python_version ~= '3.7'",
-            "version": "==10.1.302"
+            "version": "==10.1.308"
         },
         "exceptiongroup": {
             "hashes": [
