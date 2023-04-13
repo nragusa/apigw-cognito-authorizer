@@ -6,9 +6,13 @@ from aws_cdk import (
     aws_apigateway as apigw,
     aws_cognito as cognito,
     aws_ec2 as ec2,
+    aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
     aws_elasticloadbalancingv2_targets as elbv2_targets,
-    aws_iam as iam
+    aws_iam as iam,
+    aws_logs as logs,
+    aws_secretsmanager as secretsmanager,
+    aws_servicediscovery as servicediscovery
 )
 from constructs import Construct
 
@@ -260,6 +264,135 @@ class PrivateApiGwStack(Stack):
             ),
             authorizer=rest_authorizer,
             authorization_type=apigw.AuthorizationType.COGNITO
+        )
+
+        ###### ECS Infrastructure ######
+        # ECS cluster
+        cluster = ecs.Cluster(
+            self,
+            'EcsCluster',
+            vpc=vpc
+        )
+
+        # Namespace with AWS Cloud Map for service discovery
+        namespace = servicediscovery.PrivateDnsNamespace(
+            self,
+            'PrivateDnsNamespace',
+            vpc=vpc,
+            name='threat-service',
+            description='Namespace for the threat demo services'
+        )
+
+        # Generate a password for the PostgreSQL database
+        # and store it securely in secrets manager
+        postgres_password = secretsmanager.Secret(
+            self,
+            'PostgreSQLPassword',
+            description='PostgreSQL password for the threats DB',
+            generate_secret_string=secretsmanager.SecretStringGenerator(),
+            secret_name='threat-demo/POSTGRES_PASSWORD'
+        )
+
+        # security group for Postgres
+        postgres_sg = ec2.SecurityGroup(
+            self,
+            'PostgresSecurityGroup',
+            vpc=vpc,
+            description='Security group for the Postgres DB ECS Fargate service'
+        )
+        # security group for data api
+        api_sg = ec2.SecurityGroup(
+            self,
+            'ApiSecurityGroup',
+            vpc=vpc,
+            description='Security group for the data API ECS Fargate service'
+        )
+        # Allow inbound access to the DB security group
+        # from the API containers on port 5432
+        postgres_sg.add_ingress_rule(
+            peer=api_sg,
+            connection=ec2.Port.tcp(5432),
+            description='Allow connectivity from API containers to port 5432'
+        )
+
+        ###### Database ######
+        # Postgres container definition
+        postgres_task = ecs.TaskDefinition(
+            self,
+            'PostgresTask',
+            compatibility=ecs.Compatibility.FARGATE,
+            cpu='1024',
+            memory_mib='2048'
+        )
+        postgres_task.add_container(
+            'PostgresContainer',
+            image=ecs.ContainerImage.from_registry(
+                'postgres:15.2'
+            ),
+            environment={
+                'POSTGRES_USER': self.node.try_get_context('POSTGRES_USER'),
+                'POSTGRES_DB': self.node.try_get_context('POSTGRES_DB')
+            },
+            secrets={
+                'POSTGRES_PASSWORD': ecs.Secret.from_secrets_manager(postgres_password)
+            },
+            logging=ecs.AwsLogDriver(
+                stream_prefix='threat-demo-db',
+                log_group=logs.LogGroup(
+                    self,
+                    'LogGroupDB',
+                    retention=logs.RetentionDays.THREE_MONTHS
+                )
+            ),
+            port_mappings=[
+                ecs.PortMapping(
+                    host_port=5432,
+                    container_port=5432
+                )
+            ]
+        )
+        ecs.FargateService(
+            self,
+            'PostgresService',
+            task_definition=postgres_task,
+            security_groups=[postgres_sg],
+            cloud_map_options=ecs.CloudMapOptions(
+                cloud_map_namespace=namespace,
+                name='postgres-db',
+                dns_record_type=servicediscovery.DnsRecordType.A
+            ),
+            cluster=cluster,
+            desired_count=1
+        )
+
+        ###### API ######
+        api_task = ecs.TaskDefinition(
+            self,
+            'ApiTaskDefinition',
+            compatibility=ecs.Compatibility.FARGATE,
+            cpu='256',
+            memory_mib='512'
+        )
+        api_task.add_container(
+            'ApiTaskContainer',
+            image=ecs.ContainerImage.from_asset(
+                'containers/example-app-threat-db/data_api'
+            ),
+            logging=ecs.AwsLogDriver(
+                stream_prefix='threat-demo-api',
+                log_group=logs.LogGroup(
+                    self,
+                    'LogGroupAPI',
+                    retention=logs.RetentionDays.THREE_MONTHS
+                )
+            ),
+            environment={
+                'threat_db_host': 'postgres-db.threat-service',
+                'threat_db_port': '5432'
+            },
+            secrets={
+                'threat_db_pass': ecs.Secret.from_secrets_manager(postgres_password),
+            }
         )
 
         # CloudFormation outputs
