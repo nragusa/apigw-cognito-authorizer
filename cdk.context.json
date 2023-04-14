@@ -1,4 +1,7 @@
 {
     "POSTGRES_USER": "analyst",
-    "POSTGRES_DB": "threats"
+    "POSTGRES_DB": "threats",
+    "NAMESPACE": "threat-service",
+    "POSTGRES_SERVICE": "postgres-db",
+    "API_SERVICE": "threat-api"
 }

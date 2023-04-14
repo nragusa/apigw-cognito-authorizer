@@ -6,12 +6,14 @@ This CDK application builds the following:
 
 * A Cognito user pool and application client
 * A VPC with 2 public and 2 private subnets and 1 NAT gateway
+* An ECS service that stands up the threat API
+* An ECS service that stands up a PostgreSQL database
+* AWS Cloud Map namespace for service discovery using DNS A records for the ECS tasks
+* An Application Load Balancer to distribute traffic to the API ECS service
 * A private REST API Gateway API with VPC endpoints in the VPC
-* A `https://<api-url>/<stage>/hello` resource with `GET` method
+* A Network Load Balancer to support VPC link / private integration for API Gateway
 * A Cognito authorizer associated to this resource
-* A Network Load Balancer with a target group consisting of a single EC2 instance
-* An EC2 instance running Apache with a simple "Hello World!" web page at its root
-* API Gateway private integration with VPC link
+* An EC2 instance called `client-test` which can be used for testing the API endpoints
 
 ## Deployment
 
@@ -75,11 +77,11 @@ export IDTOKEN=longstringofcharacters
 Now test the API Gateway endpoint using curl:
 
 ```bash
-curl -X GET ${APIENDPOINT}hello -H "Authorization: $IDTOKEN"
+curl -X GET ${APIENDPOINT}vulnerabilities/ -H "Authorization: $IDTOKEN"
 ```
 
-You should get a plain text response similar to:
+You should get a JSON response similar to:
 
-```bash
-Hello World!
+```JSON
+[]
 ```
