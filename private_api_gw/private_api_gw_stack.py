@@ -16,7 +16,6 @@ from aws_cdk import (
     aws_servicediscovery as servicediscovery
 )
 from constructs import Construct
-import os
 
 
 class PrivateApiGwStack(Stack):
@@ -171,28 +170,15 @@ class PrivateApiGwStack(Stack):
         )
 
         ###### API ######
-        # I'm building on ARM, but ARM isn't available in GovCloud
-        # so build for x86
-        if os.environ.get('BUILD_ARM', None) is None:
-            api_task = ecs.FargateTaskDefinition(
-                self,
-                'ApiTaskDefinition',
-                cpu=256,
-                memory_limit_mib=1024,
-                runtime_platform=ecs.RuntimePlatform(
-                    cpu_architecture=ecs.CpuArchitecture.X86_64
-                )
+        api_task = ecs.FargateTaskDefinition(
+            self,
+            'ApiTaskDefinition',
+            cpu=256,
+            memory_limit_mib=1024,
+            runtime_platform=ecs.RuntimePlatform(
+                cpu_architecture=ecs.CpuArchitecture.X86_64
             )
-        else:
-            api_task = ecs.FargateTaskDefinition(
-                self,
-                'ApiTaskDefinition',
-                cpu=256,
-                memory_limit_mib=1024,
-                runtime_platform=ecs.RuntimePlatform(
-                    cpu_architecture=ecs.CpuArchitecture.ARM64
-                )
-            )
+        )
         # Make sure to unzip the app into the containers/ directory
         # so it looks like containers/example-app-threat-db/data_api
         api_task.add_container(
